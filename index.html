@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCQ and Ordering Exam</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #e9ecef;
+            color: #333;
+            touch-action: manipulation; /* Prevent default touch behaviors like zooming */
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            font-size: 2.5em;
+            margin-bottom: 20px;
+        }
+        #question-container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            transition: transform 0.2s;
+        }
+        #question-container:hover {
+            transform: translateY(-5px);
+        }
+        #question-text {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+        .option {
+            margin: 10px 0;
+        }
+        .option button {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.1em;
+            border: none;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+            color: #333;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
+            text-align: right;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        .option button:hover {
+            background-color: #e2e6ea;
+            transform: translateY(-2px);
+        }
+        .option button.selected {
+            background-color: #007bff;
+            color: white;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        .order-item {
+            padding: 15px;
+            margin: 5px 0;
+            font-size: 1.1em;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+            cursor: move;
+            text-align: right;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.3s, transform 0.2s;
+            display: flex;
+            align-items: center;
+            position: relative;
+            user-select: none; /* Prevent text selection during drag */
+            touch-action: none; /* Prevent default touch scrolling */
+            z-index: 1;
+        }
+        .order-item:hover {
+            background-color: #e2e6ea;
+        }
+        .order-item.dragging {
+            opacity: 0.7;
+            transform: scale(1.05);
+            z-index: 10;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+        .order-item.target {
+            border: 2px dashed #007bff;
+            background-color: #e2e6ea;
+        }
+        .order-item::before {
+            content: attr(data-position);
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            line-height: 30px;
+            text-align: center;
+            background-color: #007bff;
+            color: white;
+            border-radius: 50%;
+            margin-left: 10px;
+            font-size: 0.9em;
+        }
+        .order-item.correct {
+            border: 2px solid #28a745;
+        }
+        .order-item.incorrect {
+            border: 2px solid #dc3545;
+        }
+        #submit-btn, #next-btn, #restart-btn {
+            display: block;
+            margin: 20px auto;
+            padding: 12px 30px;
+            font-size: 1.1em;
+            border: none;
+            border-radius: 8px;
+            background-color: #28a745;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        #submit-btn:hover, #next-btn:hover, #restart-btn:hover {
+            background-color: #218838;
+        }
+        #result {
+            margin-top: 20px;
+            font-size: 1.4em;
+            font-weight: bold;
+            text-align: center;
+            padding: 15px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transform: scale(0.8);
+        }
+        #result.show {
+            opacity: 1;
+            transform: scale(1);
+            animation: popIn 0.5s ease forwards;
+        }
+        #result.correct {
+            background-color: #d4edda;
+            color: #155724;
+            border: 2px solid #28a745;
+        }
+        #result.incorrect {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 2px solid #dc3545;
+        }
+        #result span.icon {
+            font-size: 1.5em;
+            margin-left: 10px;
+        }
+        #score {
+            margin-top: 20px;
+            font-size: 1.3em;
+            text-align: center;
+            color: #2c3e50;
+            background-color: #fff;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        @keyframes popIn {
+            0% {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            70% {
+                opacity: 1;
+                transform: scale(1.1);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+    </style>
+</head>
+<body dir="rtl">
+    <h1>اختبار متعدد الخيارات</h1>
+    <div id="question-container">
+        <h2 id="question-text"></h2>
+        <div id="options"></div>
+        <button id="submit-btn" onclick="checkAnswer()">إرسال</button>
+    </div>
+    <div id="result"></div>
+    <div id="score">النتيجة: 0</div>
+    <button id="next-btn" onclick="loadNextQuestion()" style="display: none;">السؤال التالي</button>
+    <button id="restart-btn" onclick="restartQuiz()" style="display: none;">إعادة الاختبار</button>
+
+    <script>
+        // Array of questions, where each question is {type, question, correctAnswer, options}
+        const questions = [
+            {
+                type: 'mcq',
+                question: "أول شعر علق بنفوس الناس ووجدانهم هي معلقة من؟",
+                correctAnswer: "امرؤ القيس",
+                options: ["امرؤ القيس", "طرفة بن العبد", "زهير بن ابي سلمي", "لبيد بن ربيعة", "عمرو بن كلثوم", "عنترة بن شداد", "الحارث بن حلزة"]
+            },
+            {
+                type: 'mcq',
+                question: "كان يصف الخيل و يشبه النساء بالظباء و المها؟",
+                correctAnswer: "امرؤ القيس",
+                options: ["امرؤ القيس", "طرفة بن العبد", "زهير بن ابي سلمي", "لبيد بن ربيعة", "عمرو بن كلثوم", "عنترة بن شداد", "الحارث بن حلزة"]
+            },
+            {
+                type: 'mcq',
+                question: "لقب بالملك الضليل؟",
+                correctAnswer: "امرؤ القيس",
+                options: ["امرؤ القيس", "طرفة بن العبد", "زهير بن ابي سلمي", "لبيد بن ربيعة", "عمرو بن كلثوم", "عنترة بن شداد", "الحارث بن حلزة"]
+            },
+            {
+                type: 'mcq',
+                question: "لقب بأمير شعراء العصر الجاهلي؟",
+                correctAnswer: "امرؤ القيس",
+                options: ["امرؤ القيس", "طرفة بن العبد", "زهير بن ابي سلمي", "لبيد بن ربيعة", "عمرو بن كلثوم", "عنترة بن شداد", "الحارث بن حلزة"]
+            },
+            {
+                type: 'mcq',
+                question: "اول من استوقف الصحب؟",
+                correctAnswer: "امرؤ القيس",
+                options: ["امرؤ القيس", "طرفة بن العبد", "زهير بن ابي سلمي", "لبيد بن ربيعة", "عمرو بن كلثوم", "عنترة بن شداد", "الحارث بن حلزة"]
+            },
+            {
+                type: 'mcq',
+                question: "كانت معلقته تبدأ بالبكاء علي الأطلال و وصف المحبوبة و وصف الطبيعة؟",
+                correctAnswer: "امرؤ القيس",
+                options: ["امرؤ القيس", "طرفة بن العبد", "زهير بن ابي سلمي", "لبيد بن ربيعة", "عمرو بن كلثوم", "عنترة بن شداد", "الحارث بن حلزة"]
+            },
+            {
+                type: 'mcq',
+                question: "تميز بجودة الاستعارات و تنوع التشبيهات؟",
+                correctAnswer: "امرؤ القيس",
+                options: ["امرؤ القيس", "طرفة بن العبد", "زهير بن ابي سلمي", "لبيد بن ربيعة", "عمرو بن كلثوم", "عنترة بن شداد", "الحارث بن حلزة"]
+            },
+            {
+                type: 'mcq',
+                question: "نشأ يتيما وكانت له نباهة مبكرة؟",
+                correctAnswer: "طرفة بن العبد",
+                options: ["امرؤ القيس", "طرفة بن العبد", "زهير بن ابي سلمي", "لبيد بن ربيعة", "عمرو بن كلثوم", "عنترة بن شداد", "الحارث بن حلزة"]
+            },
+            {
+                type: 'mcq',
+                question: "مات و هو في العشرينات من عمره؟",
+                correctAnswer: "طرفة بن العبد",
+                options: ["امرؤ القيس", "طرفة بن العبد", "زهير بن ابي سلمي", "لبيد بن ربيعة", "عمرو بن كلثوم", "عنترة بن شداد", "الحارث بن حلزة"]
+            },
+            {
+                type: 'mcq',
+                question: "لقب بالغلام القتيل و ابن العشرين؟",
+                correctAnswer: "طرفة بن العبد",
+                options: ["امرؤ القيس", "طرفة بن العبد", "زهير بن ابي سلمي", "لبيد بن ربيعة", "عمرو بن كلثوم", "عنترة بن شداد", "الحارث بن حلزة"]
+            },
+            {
+                type: 'mcq',
+                question: "قتله ملك الحيرة عمرو بن هند؟",
+                correctAnswer: "طرفة بن العبد",
+                options: ["امرؤ القيس", "طرفة بن العبد", "زهير بن ابي سلمي", "لبيد بن ربيعة", "عمرو بن كلثوم", "عنترة بن شداد", "الحارث بن حلزة"]
+            },
+            {
+                type: 'mcq',
+                question: "لقب بشاعر السلام؟",
+                correctAnswer: "زهير بن ابي سلمي",
+                options: ["امرؤ القيس", "طرفة بن العبد", "زهير بن ابي سلمي", "لبيد بن ربيعة", "عمرو بن كلثوم", "عنترة بن شداد", "الحارث بن حلزة"]
+            },
+            {
+                type: 'mcq',
+                question: "ينتمي الي مزينة؟",
+                correctAnswer: "زهير بن ابي سلمي",
+                options: ["امرؤ القيس", "طرفة بن العبد", "زهير بن ابي سلمي", "لبيد بن ربيعة", "عمرو بن كلثوم", "عنترة بن شداد", "الحارث بن حلزة"]
+            },
+            {
+                type: 'mcq',
+                question: "مزينة احدي قبائل .....",
+                correctAnswer: "مضر",
+                options: ["قيس", "تميم", "مضر", "ربيعة", "كندة", "بكر", "جذام"]
+            },
+            {
+                type: 'mcq',
+                question: "كان معظم عائلته من الشعراء؟",
+                correctAnswer: "زهير بن ابي سلمي",
+                options: ["امرؤ القيس", "طرفة بن العبد", "زهير بن ابي سلمي", "لبيد بن ربيعة", "عمرو بن كلثوم", "عنترة بن شداد", "الحارث بن حلزة"]
+            },
+            {
+                type: 'mcq',
+                question: "اشتهر بشعر الحوليات؟",
+                correctAnswer: "زهير بن ابي سلمي",
+                options: ["امرؤ القيس", "طرفة بن العبد", "زهير بن ابي سلمي", "لبيد بن ربيعة", "عمرو بن كلثوم", "عنترة بن شداد", "الحارث بن حلزة"]
+            },
+            {
+                type: 'order',
+                question: "رتب مراحل كتابة الحوليات؟",
+                correctAnswer: [
+                    "تنظيم الشاعر للقصيدة في اربعة شهور",
+                    "تهذيب الشاعر للقصيدة في اربع شهور",
+                    "يعرضها علي خواصه في اربعة شهور",
+                    "يظهرها للناس بعد انتهاء الحول"
+                ],
+                options: [
+                    "يظهرها للناس بعد انتهاء الحول",
+                    "يعرضها علي خواصه في اربعة شهور",
+                    "تهذيب الشاعر للقصيدة في اربع شهور",
+                    "تنظيم الشاعر للقصيدة في اربعة شهور"
+                ]
+            },
+            {
+                type: 'mcq',
+                question: "من هما السيدان اللذان مدحهما زهير في معلقته؟",
+                correctAnswer: "هرم بن سنان و الحارث بن عوف",
+                options: ["هرم بن سنان و الحارث بن عوف",
+                 "طرفة بن العبد و زهير بن ابي سلمي",
+                  "لبيد بن ربيعة و عمرو بن كلثوم",
+                   "عمرو الكردي و الاسود بن ابي سلامة"]
+            },
+            {
+                type: 'mcq',
+                question: "مدح عبس لقبولها بالسلام؟",
+                correctAnswer: "زهير بن ابي سلمي",
+                options: ["امرؤ القيس", "طرفة بن العبد", "زهير بن ابي سلمي", "لبيد بن ربيعة", "عمرو بن كلثوم", "عنترة بن شداد", "الحارث بن حلزة"]
+            },
+            {
+                type: 'mcq',
+                question: "ذم الحرب؟",
+                correctAnswer: "زهير بن ابي سلمي",
+                options: ["امرؤ القيس", "طرفة بن العبد", "زهير بن ابي سلمي", "لبيد بن ربيعة", "عمرو بن كلثوم", "عنترة بن شداد", "الحارث بن حلزة"]
+            },
+            {
+                type: 'mcq',
+                question: "كان من اطول الشعراء سنا في الجاهلية؟",
+                correctAnswer: "لبيد بن ربيعة",
+                options: ["امرؤ القيس", "طرفة بن العبد", "زهير بن ابي سلمي", "لبيد بن ربيعة", "عمرو بن كلثوم", "عنترة بن شداد", "الحارث بن حلزة"]
+            },
+            {
+                type: 'mcq',
+                question: "ما كان عمر لبيد بن ربيعة عندما توفي ؟",
+                correctAnswer: "145",
+                options: ["145","130","155","26"]
+            },
+            {
+                type: 'mcq',
+                question: "من هو الشاعر الذي ادرك الاسلام؟",
+                correctAnswer: "لبيد بن ربيعة",
+                options: ["امرؤ القيس", "طرفة بن العبد", "زهير بن ابي سلمي", "لبيد بن ربيعة", "عمرو بن كلثوم", "عنترة بن شداد", "الحارث بن حلزة"]
+            },
+            {
+                type: 'mcq',
+                question: "كان حكيما و فارسا؟",
+                correctAnswer: "لبيد بن ربيعة",
+                options: ["امرؤ القيس", "طرفة بن العبد", "زهير بن ابي سلمي", "لبيد بن ربيعة", "عمرو بن كلثوم", "عنترة بن شداد", "الحارث بن حلزة"]
+            },
+            {
+                type: 'mcq',
+                question: "كان له محامد في الجاهمية ذكرها الاسلام؟",
+                correctAnswer: "لبيد بن ربيعة",
+                options: ["امرؤ القيس", "طرفة بن العبد", "زهير بن ابي سلمي", "لبيد بن ربيعة", "عمرو بن كلثوم", "عنترة بن شداد", "الحارث بن حلزة"]
+            },
+            {
+                type: 'mcq',
+                question: "من قتل عمرو بن هند في قصره امام حاشيته؟",
+                correctAnswer: "عمرو بن كلثوم",
+                options: ["امرؤ القيس", "طرفة بن العبد", "زهير بن ابي سلمي", "لبيد بن ربيعة", "عمرو بن كلثوم", "عنترة بن شداد", "الحارث بن حلزة"]
+            },
+            {
+                type: 'mcq',
+                question: "كان زعيم تغلب وسيدها؟",
+                correctAnswer: "عمرو بن كلثوم",
+                options: ["امرؤ القيس", "طرفة بن العبد", "زهير بن ابي سلمي", "لبيد بن ربيعة", "عمرو بن كلثوم", "عنترة بن شداد", "الحارث بن حلزة"]
+            },
+            {
+                type: 'mcq',
+                question: "بدأت معلقته بشرب الخمر؟",
+                correctAnswer: "عمرو بن كلثوم",
+                options: ["امرؤ القيس", "طرفة بن العبد", "زهير بن ابي سلمي", "لبيد بن ربيعة", "عمرو بن كلثوم", "عنترة بن شداد", "الحارث بن حلزة"]
+            },
+            {
+                type: 'mcq',
+                question: "معلقة من التي سماها ابن قتيبة من اجيد الشعر؟",
+                correctAnswer: "عمرو بن كلثوم",
+                options: ["امرؤ القيس", "طرفة بن العبد", "زهير بن ابي سلمي", "لبيد بن ربيعة", "عمرو بن كلثوم", "عنترة بن شداد", "الحارث بن حلزة"]
+            },
+            {
+                type: 'mcq',
+                question: "منصاحب اجمل معلقة و اثرها انسجاما و اسهلها لفظا؟",
+                correctAnswer: "عنترة بن شداد",
+                options: ["امرؤ القيس", "طرفة بن العبد", "زهير بن ابي سلمي", "لبيد بن ربيعة", "عمرو بن كلثوم", "عنترة بن شداد", "الحارث بن حلزة"]
+            },
+            {
+                type: 'mcq',
+                question: "كان يعادي تغلب وامال الملك عمرو بن هند ليحم لقبيلته ؟",
+                correctAnswer: "عنترة بن شداد",
+                options: ["امرؤ القيس", "طرفة بن العبد", "زهير بن ابي سلمي", "لبيد بن ربيعة", "عمرو بن كلثوم", "عنترة بن شداد", "الحارث بن حلزة"]
+            },
+
+        ];
+
+        // Shuffle questions array and options for ordering questions
+        let shuffledQuestions = [...questions];
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+        questions.forEach(question => {
+            if (question.type === 'order') {
+                question.options = shuffleArray([...question.correctAnswer]);
+            }
+        });
+        shuffledQuestions = shuffleArray([...questions]);
+
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let selectedAnswer = null;
+        let orderedItems = [];
+        let touchElement = null;
+        let touchStartY = 0;
+        let offsetY = 0;
+
+        // Generate fixed indices for incorrect answers for MCQ questions
+        const fixedIncorrectIndices = [1, 2, 3];
+
+        function loadQuestion() {
+            const questionData = shuffledQuestions[currentQuestionIndex];
+            const questionType = questionData.type;
+            const question = questionData.question;
+            const correctAnswer = questionData.correctAnswer;
+            const allOptions = questionData.options;
+
+            // Display question
+            document.getElementById('question-text').textContent = question;
+
+            // Display options based on question type
+            const optionsDiv = document.getElementById('options');
+            optionsDiv.innerHTML = '';
+
+            if (questionType === 'mcq') {
+                // MCQ: Select incorrect answers using fixed indices
+                const correctAnswerIndex = allOptions.indexOf(correctAnswer);
+                const incorrectAnswers = [];
+                let indicesToUse = fixedIncorrectIndices.slice();
+                indicesToUse = indicesToUse.map(idx => {
+                    if (idx === correctAnswerIndex) {
+                        for (let i = 0; i < allOptions.length; i++) {
+                            if (!indicesToUse.includes(i) && i !== correctAnswerIndex) {
+                                return i;
+                            }
+                        }
+                    }
+                    return idx;
+                });
+
+                indicesToUse.forEach(idx => {
+                    incorrectAnswers.push(allOptions[idx]);
+                });
+
+                const options = [correctAnswer, ...incorrectAnswers].sort(() => 0.5 - Math.random());
+
+                options.forEach((option, index) => {
+                    const optionElement = document.createElement('div');
+                    optionElement.className = 'option';
+                    optionElement.innerHTML = `
+                        <button onclick="selectAnswer('${option}', this)">${option}</button>
+                    `;
+                    optionsDiv.appendChild(optionElement);
+                });
+            } else if (questionType === 'order') {
+                // Ordering: Display draggable items
+                orderedItems = [...orderedItems.length ? orderedItems : allOptions]; // Use current order or initial shuffled options
+                orderedItems.forEach((item, index) => {
+                    const itemElement = document.createElement('div');
+                    itemElement.className = 'order-item';
+                    itemElement.draggable = true;
+                    itemElement.setAttribute('data-index', index);
+                    itemElement.setAttribute('data-position', index + 1); // Display position (1-based)
+                    itemElement.textContent = item;
+
+                    // Mouse drag events
+                    itemElement.addEventListener('dragstart', (e) => {
+                        e.dataTransfer.setData('text/plain', index);
+                        itemElement.classList.add('dragging');
+                    });
+                    itemElement.addEventListener('dragend', () => {
+                        itemElement.classList.remove('dragging');
+                    });
+                    itemElement.addEventListener('dragover', (e) => {
+                        e.preventDefault();
+                        e.currentTarget.classList.add('target');
+                    });
+                    itemElement.addEventListener('dragleave', (e) => {
+                        e.currentTarget.classList.remove('target');
+                    });
+                    itemElement.addEventListener('drop', (e) => {
+                        e.preventDefault();
+                        e.currentTarget.classList.remove('target');
+                        const draggedIndex = parseInt(e.dataTransfer.getData('text/plain'));
+                        const droppedIndex = parseInt(e.currentTarget.getAttribute('data-index'));
+                        if (draggedIndex !== droppedIndex) {
+                            [orderedItems[draggedIndex], orderedItems[droppedIndex]] = [orderedItems[droppedIndex], orderedItems[draggedIndex]];
+                            loadQuestion(); // Refresh display
+                        }
+                    });
+
+                    // Touch events
+                    itemElement.addEventListener('touchstart', (e) => {
+                        e.preventDefault();
+                        touchElement = itemElement;
+                        const touch = e.touches[0];
+                        touchStartY = touch.clientY;
+                        const rect = itemElement.getBoundingClientRect();
+                        offsetY = touch.clientY - rect.top; // Offset from top of element
+                        itemElement.classList.add('dragging');
+                        itemElement.style.position = 'absolute';
+                        itemElement.style.width = `${rect.width}px`;
+                        itemElement.style.top = `${rect.top}px`;
+                    });
+                    itemElement.addEventListener('touchmove', (e) => {
+                        e.preventDefault();
+                        const touch = e.touches[0];
+                        const newY = touch.clientY - offsetY;
+                        itemElement.style.top = `${newY}px`;
+
+                        // Find target element
+                        const elements = document.querySelectorAll('.order-item');
+                        let targetElement = null;
+                        elements.forEach(el => {
+                            if (el !== touchElement) {
+                                const rect = el.getBoundingClientRect();
+                                const threshold = rect.height / 2; // Middle of the element
+                                if (touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+                                    if (touch.clientY < rect.top + threshold && newY < rect.top) {
+                                        targetElement = el;
+                                    } else if (touch.clientY > rect.bottom - threshold && newY > rect.top) {
+                                        targetElement = el;
+                                    }
+                                }
+                            }
+                        });
+
+                        // Update target highlighting
+                        elements.forEach(el => el.classList.remove('target'));
+                        if (targetElement) {
+                            targetElement.classList.add('target');
+                        }
+                    });
+                    itemElement.addEventListener('touchend', (e) => {
+                        itemElement.classList.remove('dragging');
+                        itemElement.style.position = '';
+                        itemElement.style.width = '';
+                        itemElement.style.top = '';
+                        document.querySelectorAll('.order-item').forEach(el => el.classList.remove('target'));
+
+                        // Perform swap if over a target
+                        const touch = e.changedTouches[0];
+                        const elements = document.querySelectorAll('.order-item');
+                        let targetElement = null;
+                        elements.forEach(el => {
+                            if (el !== touchElement) {
+                                const rect = el.getBoundingClientRect();
+                                const threshold = rect.height / 2;
+                                if (touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+                                    if (touch.clientY < rect.top + threshold) {
+                                        targetElement = el;
+                                    } else if (touch.clientY > rect.bottom - threshold) {
+                                        targetElement = el;
+                                    }
+                                }
+                            }
+                        });
+
+                        if (targetElement) {
+                            const draggedIndex = parseInt(touchElement.getAttribute('data-index'));
+                            const droppedIndex = parseInt(targetElement.getAttribute('data-index'));
+                            if (draggedIndex !== droppedIndex) {
+                                [orderedItems[draggedIndex], orderedItems[droppedIndex]] = [orderedItems[droppedIndex], orderedItems[draggedIndex]];
+                                loadQuestion(); // Refresh display
+                            }
+                        }
+                        touchElement = null;
+                    });
+
+                    optionsDiv.appendChild(itemElement);
+                });
+            }
+
+            // Reset result and show submit button
+            selectedAnswer = null;
+            if (questionType !== 'order') orderedItems = [];
+            document.getElementById('result').textContent = '';
+            document.getElementById('result').classList.remove('show', 'correct', 'incorrect');
+            document.querySelectorAll('.order-item').forEach(item => {
+                item.classList.remove('correct', 'incorrect');
+            });
+            document.getElementById('submit-btn').style.display = 'block';
+            document.getElementById('next-btn').style.display = 'none';
+            document.getElementById('restart-btn').style.display = 'none';
+        }
+
+        function selectAnswer(answer, button) {
+            // For MCQ only
+            if (shuffledQuestions[currentQuestionIndex].type !== 'mcq') return;
+            document.querySelectorAll('.option button').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            button.classList.add('selected');
+            selectedAnswer = answer;
+        }
+
+        function checkAnswer() {
+            const questionData = shuffledQuestions[currentQuestionIndex];
+            const questionType = questionData.type;
+            const correctAnswer = questionData.correctAnswer;
+            const resultDiv = document.getElementById('result');
+
+            // Array of varied messages for correct and incorrect answers
+            const correctMessages = [
+                'ممتاز! إجابة صحيحة! 🎉',
+                'رائع! أنت على الطريق الصحيح! ✅',
+                'أحسنت! إجابة مثالية! 🌟'
+            ];
+            const incorrectMessages = [
+                'للأسف، خطأ. الإجابة الصحيحة هي: ',
+                'حاول مرة أخرى! الإجابة الصحيحة هي: ',
+                'غير صحيح. الإجابة الصحيحة هي: '
+            ];
+
+            if (questionType === 'mcq') {
+                if (!selectedAnswer) {
+                    resultDiv.textContent = 'يرجى اختيار إجابة!';
+                    resultDiv.classList.add('show', 'incorrect');
+                    return;
+                }
+
+                if (selectedAnswer === correctAnswer) {
+                    resultDiv.textContent = correctMessages[Math.floor(Math.random() * correctMessages.length)] + ' ';
+                    resultDiv.classList.add('show', 'correct');
+                    resultDiv.innerHTML += '<span class="icon">✅</span>';
+                    score++;
+                } else {
+                    resultDiv.textContent = incorrectMessages[Math.floor(Math.random() * incorrectMessages.length)] + correctAnswer + ' ';
+                    resultDiv.classList.add('show', 'incorrect');
+                    resultDiv.innerHTML += '<span class="icon">❌</span>';
+                }
+            } else if (questionType === 'order') {
+                if (orderedItems.length === 0) {
+                    resultDiv.textContent = 'يرجى ترتيب العناصر!';
+                    resultDiv.classList.add('show', 'incorrect');
+                    return;
+                }
+
+                const isCorrect = orderedItems.every((item, index) => item === correctAnswer[index]);
+                if (isCorrect) {
+                    resultDiv.textContent = correctMessages[Math.floor(Math.random() * correctMessages.length)] + ' ';
+                    resultDiv.classList.add('show', 'correct');
+                    resultDiv.innerHTML += '<span class="icon">✅</span>';
+                    score++;
+                    document.querySelectorAll('.order-item').forEach(item => {
+                        item.classList.add('correct');
+                    });
+                } else {
+                    resultDiv.textContent = incorrectMessages[Math.floor(Math.random() * incorrectMessages.length)] + correctAnswer.join('، ') + ' ';
+                    resultDiv.classList.add('show', 'incorrect');
+                    resultDiv.innerHTML += '<span class="icon">❌</span>';
+                    document.querySelectorAll('.order-item').forEach((item, index) => {
+                        item.classList.add(orderedItems[index] === correctAnswer[index] ? 'correct' : 'incorrect');
+                    });
+                }
+            }
+
+            document.getElementById('score').textContent = `النتيجة: ${score}`;
+            document.getElementById('submit-btn').style.display = 'none';
+            document.getElementById('next-btn').style.display = 'block';
+        }
+
+        function loadNextQuestion() {
+            currentQuestionIndex++;
+            if (currentQuestionIndex < shuffledQuestions.length) {
+                loadQuestion();
+            } else {
+                document.getElementById('question-container').innerHTML = '<h2>اكتمل الاختبار!</h2>';
+                const resultDiv = document.getElementById('result');
+                resultDiv.textContent = `النتيجة النهائية: ${score} من ${shuffledQuestions.length} `;
+                resultDiv.classList.add('show', score === shuffledQuestions.length ? 'correct' : 'incorrect');
+                resultDiv.innerHTML += `<span class="icon">${score === shuffledQuestions.length ? '🏆' : '📝'}</span>`;
+                document.getElementById('next-btn').style.display = 'none';
+                document.getElementById('restart-btn').style.display = 'block';
+            }
+        }
+
+        function restartQuiz() {
+            currentQuestionIndex = 0;
+            score = 0;
+            // Reshuffle questions and options for ordering questions
+            questions.forEach(question => {
+                if (question.type === 'order') {
+                    question.options = shuffleArray([...question.correctAnswer]);
+                }
+            });
+            shuffledQuestions = shuffleArray([...questions]);
+            document.getElementById('score').textContent = `النتيجة: ${score}`;
+            document.getElementById('question-container').innerHTML = `
+                <h2 id="question-text"></h2>
+                <div id="options"></div>
+                <button id="submit-btn" onclick="checkAnswer()">إرسال</button>
+            `;
+            loadQuestion();
+        }
+
+        // Load the first question
+        loadQuestion();
+    </script>
+</body>
+</html>
